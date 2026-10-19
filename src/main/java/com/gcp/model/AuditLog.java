@@ -23,6 +23,21 @@ public class AuditLog {
 
     private LocalDateTime loggedAt;
 
+    public AuditLog() {}
+
+    public AuditLog(String actor, String actionType, String entityType, String entityId, String details) {
+        this.actor = actor;
+        this.actionType = actionType;
+        this.entityType = entityType;
+        this.entityId = entityId;
+        this.details = details;
+        this.loggedAt = LocalDateTime.now();
+    }
+
+    public AuditLog(String actor, String actionType, String entityType, Long entityId, String details) {
+        this(actor, actionType, entityType, entityId == null ? null : String.valueOf(entityId), details);
+    }
+
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
 

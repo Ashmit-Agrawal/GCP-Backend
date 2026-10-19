@@ -1,26 +1,24 @@
 package com.gcp.controller;
 
+import com.gcp.dto.CompanyRegistrationRequest;
 import com.gcp.dto.CompanyRequest;
+import com.gcp.dto.CompanyVerificationResult;
 import com.gcp.dto.CreditAccount;
 import com.gcp.model.Company;
+import com.gcp.model.CompanyStatus;
 import com.gcp.model.CreditEntry;
 import com.gcp.model.LandApplication;
 import com.gcp.model.LandParcel;
 import com.gcp.model.Redemption;
 import com.gcp.service.ApplicationService;
 import com.gcp.service.CompanyService;
+import com.gcp.service.CompanyVerificationService;
 import com.gcp.service.CreditService;
 import com.gcp.service.ParcelService;
 import com.gcp.service.RedemptionService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.ResponseStatus;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
@@ -30,20 +28,42 @@ import java.util.List;
 public class CompanyController {
 
     private final CompanyService companies;
+    private final CompanyVerificationService verificationService;
     private final ApplicationService applications;
     private final ParcelService parcels;
     private final CreditService credits;
     private final RedemptionService redemptions;
 
-    public CompanyController(CompanyService companies, ApplicationService applications,
-                             ParcelService parcels, CreditService credits, RedemptionService redemptions) {
+    public CompanyController(CompanyService companies,
+                             CompanyVerificationService verificationService,
+                             ApplicationService applications,
+                             ParcelService parcels,
+                             CreditService credits,
+                             RedemptionService redemptions) {
         this.companies = companies;
+        this.verificationService = verificationService;
         this.applications = applications;
         this.parcels = parcels;
         this.credits = credits;
         this.redemptions = redemptions;
     }
 
+    /** Full company registration with GSTIN/PAN/CIN validation and rank calculation */
+    @PostMapping("/register")
+    @ResponseStatus(HttpStatus.CREATED)
+    public Company registerFull(@Valid @RequestBody CompanyRegistrationRequest req) {
+        return companies.registerFull(req);
+    }
+
+    /** Pre-registration verification check (preview without persisting) */
+    @PostMapping("/verify-check")
+    public CompanyVerificationResult checkVerification(@RequestBody VerifyCheckRequest req) {
+        return verificationService.verify(req.cin(), req.gstin(), req.pan(), req.annualTurnoverCrores());
+    }
+
+    public record VerifyCheckRequest(String cin, String gstin, String pan, Double annualTurnoverCrores) {}
+
+    /** Legacy register endpoint */
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public Company register(@Valid @RequestBody CompanyRequest req) {
@@ -51,8 +71,8 @@ public class CompanyController {
     }
 
     @GetMapping
-    public List<Company> all() {
-        return companies.findAll();
+    public List<Company> all(@RequestParam(required = false) CompanyStatus status) {
+        return companies.findByStatus(status);
     }
 
     @GetMapping("/{id}")

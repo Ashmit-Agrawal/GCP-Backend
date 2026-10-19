@@ -41,6 +41,21 @@ public class ApplicationService {
         Company company = companies.get(req.companyId());
         LandParcel parcel = parcels.get(req.parcelId());
 
+        if (company.getStatus() != null && company.getStatus() != com.gcp.model.CompanyStatus.APPROVED) {
+            throw new BadRequestException("Company registration status is " + company.getStatus()
+                    + ". Only verified companies with APPROVED status can apply for land parcels.");
+        }
+
+        if (company.getRank() != null && parcel.getAreaHectares() > company.getRank().getMaxAreaHectares()) {
+            throw new BadRequestException(String.format(
+                    "Area limit exceeded: Company rank '%s' permits parcels up to %.1f ha, but parcel %s is %.1f ha.",
+                    company.getRank().name(),
+                    company.getRank().getMaxAreaHectares(),
+                    parcel.getId(),
+                    parcel.getAreaHectares()
+            ));
+        }
+
         if (parcel.getStatus() != ParcelStatus.AVAILABLE) {
             throw new BadRequestException("Parcel " + parcel.getId() + " is not available");
         }
@@ -58,7 +73,7 @@ public class ApplicationService {
         a.setSubmittedAt(LocalDateTime.now());
         a = repo.save(a);
         audit.log(company.getName(), "APPLICATION_SUBMITTED", "LandApplication", a.getId(),
-                "Parcel " + parcel.getId());
+                "Parcel " + parcel.getId() + " (" + parcel.getAreaHectares() + " ha)");
         return a;
     }
 
