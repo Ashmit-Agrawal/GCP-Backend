@@ -1,10 +1,19 @@
 package com.gcp.model;
 
 import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
 import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "users")
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class User {
 
     @Id
@@ -30,8 +39,6 @@ public class User {
     private boolean enabled = true;
 
     private LocalDateTime createdAt;
-
-    public User() {}
 
     public User(String username, String password, Role role, Long companyId, String fullName, String email, boolean enabled) {
         this.username = username;

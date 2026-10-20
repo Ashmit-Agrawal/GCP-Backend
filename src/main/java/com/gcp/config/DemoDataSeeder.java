@@ -277,9 +277,44 @@ public class DemoDataSeeder implements CommandLineRunner {
         redemptionRepo.save(r1);
 
         // 10. Seed Audits
-        auditRepo.save(new AuditLog("System", "SEED_INIT", "Database", 1L, "PostgreSQL schema and demo seed initialized"));
-        auditRepo.save(new AuditLog("Dr. Arvind Sharma", "COMPANY_APPROVED", "Company", tata.getId(), "Approved Tata Power Ltd (PLATINUM rank, max 50 ha)"));
-        auditRepo.save(new AuditLog("Dr. Arvind Sharma", "COMPANY_APPROVED", "Company", infy.getId(), "Approved Infosys Ltd (PLATINUM rank, max 50 ha)"));
-        auditRepo.save(new AuditLog("Dr. Arvind Sharma", "COMPANY_APPROVED", "Company", mahindra.getId(), "Approved Mahindra & Mahindra Ltd (GOLD rank, max 25 ha)"));
+        auditRepo.save(
+                AuditLog.builder()
+                        .actor("System")
+                        .actionType("SEED_INIT")
+                        .entityType("Database")
+                        .entityId(1L)
+                        .details("PostgreSQL schema and demo seed initialized")
+                        .build()
+        );
+
+        auditRepo.save(
+                AuditLog.builder()
+                        .actor("Dr. Arvind Sharma")
+                        .actionType("COMPANY_APPROVED")
+                        .entityType("Company")
+                        .entityId(tata.getId())
+                        .details("Approved Tata Power Ltd (PLATINUM rank, max 50 ha)")
+                        .build()
+        );
+
+        auditRepo.save(
+                AuditLog.builder()
+                        .actor("Dr. Arvind Sharma")
+                        .actionType("COMPANY_APPROVED")
+                        .entityType("Company")
+                        .entityId(infy.getId())
+                        .details("Approved Infosys Ltd (PLATINUM rank, max 50 ha)")
+                        .build()
+        );
+
+        auditRepo.save(
+                AuditLog.builder()
+                        .actor("Dr. Arvind Sharma")
+                        .actionType("COMPANY_APPROVED")
+                        .entityType("Company")
+                        .entityId(mahindra.getId())
+                        .details("Approved Mahindra & Mahindra Ltd (GOLD rank, max 25 ha)")
+                        .build()
+        );
     }
 }

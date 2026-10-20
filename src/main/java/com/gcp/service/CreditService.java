@@ -16,6 +16,7 @@ import com.gcp.repository.RedemptionRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -53,18 +54,25 @@ public class CreditService {
         if (parcel.getStatus() != ParcelStatus.ALLOTTED || parcel.getAllottedCompanyId() == null) {
             throw new BadRequestException("Credits can only be calculated for an allotted parcel");
         }
-        CreditEntry e = new CreditEntry();
-        e.setCompanyId(parcel.getAllottedCompanyId());
-        e.setParcelId(parcel.getId());
-        e.setAreaHectares(parcel.getAreaHectares());
-        e.setCanopyGrowthPercent(req.canopyGrowthPercent());
-        e.setCredits(calculate(parcel.getAreaHectares(), req.canopyGrowthPercent()));
-        e.setVerificationMethod(req.verificationMethod());
-        e.setStatus(CreditStatus.DRAFT);
-        e.setCreatedAt(LocalDateTime.now());
-        e = repo.save(e);
+
+        double calculatedCredits = calculate(parcel.getAreaHectares(), req.canopyGrowthPercent());
+
+        CreditEntry e = repo.save(
+                CreditEntry.builder()
+                        .companyId(parcel.getAllottedCompanyId())
+                        .parcelId(parcel.getId())
+                        .areaHectares(parcel.getAreaHectares())
+                        .canopyGrowthPercent(req.canopyGrowthPercent())
+                        .credits(calculatedCredits)
+                        .verificationMethod(req.verificationMethod())
+                        .status(CreditStatus.DRAFT)
+                        .createdAt(LocalDateTime.now())
+                        .build()
+        );
+
         audit.log("System", "CREDIT_CALCULATED", "CreditEntry", e.getId(),
                 parcel.getAreaHectares() + " ha x " + req.canopyGrowthPercent() + "% = " + e.getCredits() + " GC");
+
         return e;
     }
 
