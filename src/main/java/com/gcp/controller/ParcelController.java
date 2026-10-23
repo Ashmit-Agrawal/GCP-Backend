@@ -2,10 +2,10 @@ package com.gcp.controller;
 
 import com.gcp.dto.MonitoringRequest;
 import com.gcp.dto.ParcelRequest;
-import com.gcp.model.DegradationLevel;
+import com.gcp.enums.DegradationLevel;
 import com.gcp.model.LandParcel;
 import com.gcp.model.MonitoringRecord;
-import com.gcp.model.ParcelStatus;
+import com.gcp.enums.ParcelStatus;
 import com.gcp.service.MonitoringService;
 import com.gcp.service.ParcelService;
 import jakarta.validation.Valid;
@@ -34,15 +34,17 @@ public class ParcelController {
     }
 
     /**
-     * Browse and filter. Example: /api/parcels?state=Maharashtra&minArea=10&maxArea=20&degradation=HIGH&status=AVAILABLE
-     * Area ranges from the UI: under 10 ha = maxArea=10, 10-20 ha = minArea=10&maxArea=20, over 20 ha = minArea=20.
+     * Browse and filter. Example:
+     * /api/parcels?state=Maharashtra&minArea=10&maxArea=20&degradation=HIGH&status=AVAILABLE
+     * Area ranges from the UI: under 10 ha = maxArea=10, 10-20 ha =
+     * minArea=10&maxArea=20, over 20 ha = minArea=20.
      */
     @GetMapping
     public List<LandParcel> search(@RequestParam(required = false) String state,
-                                   @RequestParam(required = false) Double minArea,
-                                   @RequestParam(required = false) Double maxArea,
-                                   @RequestParam(required = false) DegradationLevel degradation,
-                                   @RequestParam(required = false) ParcelStatus status) {
+            @RequestParam(required = false) Double minArea,
+            @RequestParam(required = false) Double maxArea,
+            @RequestParam(required = false) DegradationLevel degradation,
+            @RequestParam(required = false) ParcelStatus status) {
         return parcels.search(state, minArea, maxArea, degradation, status);
     }
 

@@ -1,5 +1,7 @@
 package com.gcp.model;
 
+import com.gcp.enums.RedemptionOption;
+import com.gcp.enums.RedemptionStatus;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -16,7 +18,8 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 public class Redemption {
 
-    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     private Long companyId;

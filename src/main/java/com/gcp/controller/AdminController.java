@@ -1,6 +1,7 @@
 package com.gcp.controller;
 
 import com.gcp.dto.*;
+import com.gcp.enums.*;
 import com.gcp.model.*;
 import com.gcp.repository.CompanyRepository;
 import com.gcp.repository.CreditEntryRepository;
@@ -39,17 +40,17 @@ public class AdminController {
     private final RedemptionRepository redemptionRepo;
 
     public AdminController(CompanyService companyService,
-                           CompanyVerificationService verificationService,
-                           ApplicationService applicationService,
-                           ParcelService parcelService,
-                           CreditService creditService,
-                           RedemptionService redemptionService,
-                           AuditService auditService,
-                           CompanyRepository companyRepo,
-                           LandApplicationRepository applicationRepo,
-                           CreditEntryRepository creditRepo,
-                           LandParcelRepository parcelRepo,
-                           RedemptionRepository redemptionRepo) {
+            CompanyVerificationService verificationService,
+            ApplicationService applicationService,
+            ParcelService parcelService,
+            CreditService creditService,
+            RedemptionService redemptionService,
+            AuditService auditService,
+            CompanyRepository companyRepo,
+            LandApplicationRepository applicationRepo,
+            CreditEntryRepository creditRepo,
+            LandParcelRepository parcelRepo,
+            RedemptionRepository redemptionRepo) {
         this.companyService = companyService;
         this.verificationService = verificationService;
         this.applicationService = applicationService;
@@ -70,13 +71,15 @@ public class AdminController {
         long totalCompanies = companyRepo.count();
         long pendingVerifications = companyRepo.countByStatus(CompanyStatus.PENDING_VERIFICATION);
         long pendingApps = applicationRepo.countByStatus(ApplicationStatus.PENDING_REVIEW);
-        long pendingCredits = creditRepo.findByStatus(CreditStatus.DRAFT).size();
+        long pendingCredits = creditRepo.countByStatusIn(
+                List.of(CreditStatus.DRAFT, CreditStatus.SUBMITTED, CreditStatus.IN_REVIEW));
 
         double totalCreditsIssued = creditRepo.findByStatus(CreditStatus.APPROVED).stream()
                 .mapToDouble(CreditEntry::getCredits).sum();
 
         double totalCreditsRedeemed = redemptionRepo.findByStatus(RedemptionStatus.APPROVED).stream()
-                .mapToDouble(r -> r.getCredits() > 0 ? r.getCredits() : (r.getRedemptionOption() != null ? r.getRedemptionOption().getCost() : 0.0))
+                .mapToDouble(r -> r.getCredits() > 0 ? r.getCredits()
+                        : (r.getRedemptionOption() != null ? r.getRedemptionOption().getCost() : 0.0))
                 .sum();
 
         double totalLandAllocated = parcelRepo.findAll().stream()
@@ -95,13 +98,15 @@ public class AdminController {
                 Math.round(totalCreditsIssued * 100.0) / 100.0,
                 Math.round(totalCreditsRedeemed * 100.0) / 100.0,
                 Math.round(totalLandAllocated * 10.0) / 10.0,
-                availableParcels
-        );
+                availableParcels);
     }
 
     // ==================== COMPANY REGISTRATION & RANK CONTROL ====================
 
-    /** List companies with optional status filter (e.g. ?status=PENDING_VERIFICATION) */
+    /**
+     * List companies with optional status filter (e.g.
+     * ?status=PENDING_VERIFICATION)
+     */
     @GetMapping("/companies")
     public List<Company> listCompanies(@RequestParam(required = false) CompanyStatus status) {
         return companyService.findByStatus(status);
@@ -112,8 +117,7 @@ public class AdminController {
     public AdminCompanyDetails getCompanyDetails(@PathVariable Long id) {
         Company company = companyService.get(id);
         CompanyVerificationResult report = verificationService.verify(
-                company.getCin(), company.getGstin(), company.getPan(), company.getAnnualTurnoverCrores()
-        );
+                company.getCin(), company.getGstin(), company.getPan(), company.getAnnualTurnoverCrores());
         return new AdminCompanyDetails(company, report);
     }
 
@@ -188,7 +192,7 @@ public class AdminController {
 
     @GetMapping("/audit")
     public List<AuditLog> listAudits(@RequestParam(required = false) String entityType,
-                                     @RequestParam(required = false) String entityId) {
+            @RequestParam(required = false) String entityId) {
         return auditService.find(entityType, entityId);
     }
 }

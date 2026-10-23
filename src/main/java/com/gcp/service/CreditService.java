@@ -6,11 +6,11 @@ import com.gcp.dto.CreditDecisionRequest;
 import com.gcp.exception.BadRequestException;
 import com.gcp.exception.NotFoundException;
 import com.gcp.model.CreditEntry;
-import com.gcp.model.CreditStatus;
+import com.gcp.enums.CreditStatus;
 import com.gcp.model.LandParcel;
-import com.gcp.model.ParcelStatus;
+import com.gcp.enums.ParcelStatus;
 import com.gcp.model.Redemption;
-import com.gcp.model.RedemptionStatus;
+import com.gcp.enums.RedemptionStatus;
 import com.gcp.repository.CreditEntryRepository;
 import com.gcp.repository.RedemptionRepository;
 import org.springframework.stereotype.Service;
@@ -30,7 +30,7 @@ public class CreditService {
     private final AuditService audit;
 
     public CreditService(CreditEntryRepository repo, RedemptionRepository redemptionRepo,
-                         ParcelService parcels, CompanyService companies, AuditService audit) {
+            ParcelService parcels, CompanyService companies, AuditService audit) {
         this.repo = repo;
         this.redemptionRepo = redemptionRepo;
         this.parcels = parcels;
@@ -47,7 +47,10 @@ public class CreditService {
         return Math.round(areaHectares * canopyGrowthPercent * 100.0) / 100.0;
     }
 
-    /** Creates a DRAFT credit entry. It only counts as "in pipeline" until an officer approves it. */
+    /**
+     * Creates a DRAFT credit entry. It only counts as "in pipeline" until an
+     * officer approves it.
+     */
     @Transactional
     public CreditEntry createDraft(CreditCalculationRequest req) {
         LandParcel parcel = parcels.get(req.parcelId());
@@ -67,8 +70,7 @@ public class CreditService {
                         .verificationMethod(req.verificationMethod())
                         .status(CreditStatus.DRAFT)
                         .createdAt(LocalDateTime.now())
-                        .build()
-        );
+                        .build());
 
         audit.log("System", "CREDIT_CALCULATED", "CreditEntry", e.getId(),
                 parcel.getAreaHectares() + " ha x " + req.canopyGrowthPercent() + "% = " + e.getCredits() + " GC");
@@ -80,7 +82,7 @@ public class CreditService {
     @Transactional
     public CreditEntry decide(Long id, CreditDecisionRequest req) {
         CreditEntry e = get(id);
-        if (e.getStatus() != CreditStatus.DRAFT) {
+        if (e.getStatus() == CreditStatus.APPROVED || e.getStatus() == CreditStatus.REJECTED) {
             throw new BadRequestException("Credit entry " + id + " has already been decided");
         }
         e.setDecidedAt(LocalDateTime.now());
@@ -112,15 +114,22 @@ public class CreditService {
         return repo.findByCompanyId(companyId);
     }
 
-    /** Total earned, redeemed, available and in-pipeline credits for one company. */
+    /**
+     * Total earned, redeemed, available and in-pipeline credits for one company.
+     */
     public CreditAccount account(Long companyId) {
         companies.get(companyId);
         double earned = sumCredits(companyId, CreditStatus.APPROVED);
-        double pipeline = sumCredits(companyId, CreditStatus.DRAFT);
+        double pipeline = repo.findByCompanyId(companyId).stream()
+                .filter(e -> e.getStatus() == CreditStatus.DRAFT
+                        || e.getStatus() == CreditStatus.SUBMITTED
+                        || e.getStatus() == CreditStatus.IN_REVIEW)
+                .mapToDouble(CreditEntry::getCredits).sum();
         double redeemed = redemptionRepo.findByCompanyId(companyId).stream()
                 .filter(r -> r.getStatus() == RedemptionStatus.APPROVED)
                 .mapToDouble(Redemption::getCredits).sum();
-        return new CreditAccount(companyId, earned, redeemed, earned - redeemed, pipeline);
+        double available = Math.max(0.0, Math.round((earned - redeemed) * 100.0) / 100.0);
+        return new CreditAccount(companyId, earned, redeemed, available, pipeline);
     }
 
     private double sumCredits(Long companyId, CreditStatus status) {

@@ -4,11 +4,12 @@ import com.gcp.dto.ApplicationRequest;
 import com.gcp.dto.DecisionRequest;
 import com.gcp.exception.BadRequestException;
 import com.gcp.exception.NotFoundException;
-import com.gcp.model.ApplicationStatus;
+import com.gcp.enums.CompanyStatus;
+import com.gcp.enums.ApplicationStatus;
 import com.gcp.model.Company;
 import com.gcp.model.LandApplication;
 import com.gcp.model.LandParcel;
-import com.gcp.model.ParcelStatus;
+import com.gcp.enums.ParcelStatus;
 import com.gcp.repository.LandApplicationRepository;
 import com.gcp.repository.LandParcelRepository;
 import org.springframework.stereotype.Service;
@@ -28,7 +29,7 @@ public class ApplicationService {
     private final AuditService audit;
 
     public ApplicationService(LandApplicationRepository repo, LandParcelRepository parcelRepo,
-                              CompanyService companies, ParcelService parcels, AuditService audit) {
+            CompanyService companies, ParcelService parcels, AuditService audit) {
         this.repo = repo;
         this.parcelRepo = parcelRepo;
         this.companies = companies;
@@ -41,7 +42,7 @@ public class ApplicationService {
         Company company = companies.get(req.companyId());
         LandParcel parcel = parcels.get(req.parcelId());
 
-        if (company.getStatus() != null && company.getStatus() != com.gcp.model.CompanyStatus.APPROVED) {
+        if (company.getStatus() != null && company.getStatus() != CompanyStatus.APPROVED) {
             throw new BadRequestException("Company registration status is " + company.getStatus()
                     + ". Only verified companies with APPROVED status can apply for land parcels.");
         }
@@ -52,8 +53,7 @@ public class ApplicationService {
                     company.getRank().name(),
                     company.getRank().getMaxAreaHectares(),
                     parcel.getId(),
-                    parcel.getAreaHectares()
-            ));
+                    parcel.getAreaHectares()));
         }
 
         if (parcel.getStatus() != ParcelStatus.AVAILABLE) {
@@ -77,7 +77,10 @@ public class ApplicationService {
         return a;
     }
 
-    /** Officer approves or rejects. Approval allots the parcel and records the allotment date. */
+    /**
+     * Officer approves or rejects. Approval allots the parcel and records the
+     * allotment date.
+     */
     @Transactional
     public LandApplication decide(Long id, DecisionRequest req) {
         LandApplication a = get(id);

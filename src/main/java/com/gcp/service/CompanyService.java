@@ -8,9 +8,9 @@ import com.gcp.dto.RankUpdateRequest;
 import com.gcp.exception.BadRequestException;
 import com.gcp.exception.NotFoundException;
 import com.gcp.model.Company;
-import com.gcp.model.CompanyRank;
-import com.gcp.model.CompanyStatus;
-import com.gcp.model.Role;
+import com.gcp.enums.CompanyRank;
+import com.gcp.enums.CompanyStatus;
+import com.gcp.enums.Role;
 import com.gcp.model.User;
 import com.gcp.repository.CompanyRepository;
 import com.gcp.repository.UserRepository;
@@ -31,10 +31,10 @@ public class CompanyService {
     private final AuditService audit;
 
     public CompanyService(CompanyRepository repo,
-                          UserRepository userRepo,
-                          CompanyVerificationService verificationService,
-                          PasswordEncoder passwordEncoder,
-                          AuditService audit) {
+            UserRepository userRepo,
+            CompanyVerificationService verificationService,
+            PasswordEncoder passwordEncoder,
+            AuditService audit) {
         this.repo = repo;
         this.userRepo = userRepo;
         this.verificationService = verificationService;
@@ -66,8 +66,7 @@ public class CompanyService {
 
         // 2. Automated Regex & Consistency Verification
         CompanyVerificationResult verification = verificationService.verify(
-                cin, gstin, pan, req.annualTurnoverCrores()
-        );
+                cin, gstin, pan, req.annualTurnoverCrores());
 
         if (!verification.validOverall()) {
             throw new BadRequestException(verification.summaryMessage());
@@ -139,7 +138,8 @@ public class CompanyService {
     public Company decide(Long id, CompanyDecisionRequest req) {
         Company company = get(id);
         if (company.getStatus() != CompanyStatus.PENDING_VERIFICATION) {
-            throw new BadRequestException("Company " + id + " has already been decided (Status: " + company.getStatus() + ")");
+            throw new BadRequestException(
+                    "Company " + id + " has already been decided (Status: " + company.getStatus() + ")");
         }
 
         LocalDateTime now = LocalDateTime.now();
@@ -191,7 +191,8 @@ public class CompanyService {
         company.setRank(req.rank());
         company = repo.save(company);
 
-        String actor = (req.officerName() != null && !req.officerName().isBlank()) ? req.officerName() : "Admin Officer";
+        String actor = (req.officerName() != null && !req.officerName().isBlank()) ? req.officerName()
+                : "Admin Officer";
         audit.log(actor, "COMPANY_RANK_UPDATED", "Company", id,
                 "Rank changed from " + oldRank + " to " + req.rank()
                         + " (Max limit: " + req.rank().getMaxAreaHectares() + " ha). Reason: " + req.reason());

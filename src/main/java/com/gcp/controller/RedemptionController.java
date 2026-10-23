@@ -4,7 +4,7 @@ import com.gcp.dto.DecisionRequest;
 import com.gcp.dto.RedemptionOptionInfo;
 import com.gcp.dto.RedemptionRequest;
 import com.gcp.model.Redemption;
-import com.gcp.model.RedemptionStatus;
+import com.gcp.enums.RedemptionStatus;
 import com.gcp.service.RedemptionService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;

@@ -1,6 +1,6 @@
 package com.gcp.security;
 
-import com.gcp.model.Role;
+import com.gcp.enums.Role;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
@@ -73,4 +73,3 @@ public class JwtTokenProvider {
         }
     }
 }
-

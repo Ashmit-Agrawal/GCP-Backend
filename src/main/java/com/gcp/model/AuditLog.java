@@ -4,13 +4,13 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.time.LocalDateTime;
+
 @Entity
 @Table(name = "audit_logs")
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-
 
 public class AuditLog {
 
@@ -24,7 +24,7 @@ public class AuditLog {
 
     private String entityType;
 
-    private Long entityId;
+    private String entityId;
 
     @Column(length = 500)
     private String details;

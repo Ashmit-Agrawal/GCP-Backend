@@ -1,5 +1,7 @@
 package com.gcp.model;
 
+import com.gcp.enums.CompanyRank;
+import com.gcp.enums.CompanyStatus;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;

@@ -1,9 +1,9 @@
 package com.gcp.dto;
 
-import com.gcp.model.RedemptionOption;
+import com.gcp.enums.RedemptionOption;
 import jakarta.validation.constraints.NotNull;
 
 public record RedemptionRequest(
-        @NotNull Long companyId,
-        @NotNull RedemptionOption option) {
+                @NotNull Long companyId,
+                @NotNull RedemptionOption option) {
 }

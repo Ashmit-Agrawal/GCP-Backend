@@ -1,16 +1,18 @@
 package com.gcp.model;
 
-import jakarta.persistence.*;
+import com.gcp.enums.DegradationLevel;
+import com.gcp.enums.ParcelStatus;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
-@Entity
-@Table(name = "land_parcels")
+@Document(collection = "land_parcels")
 @Data
 @Builder
 @NoArgsConstructor
@@ -34,10 +36,8 @@ public class LandParcel {
 
     private String forestType;
 
-    @Enumerated(EnumType.STRING)
     private DegradationLevel degradationLevel;
 
-    @Enumerated(EnumType.STRING)
     private ParcelStatus status;
 
     private Long allottedCompanyId;

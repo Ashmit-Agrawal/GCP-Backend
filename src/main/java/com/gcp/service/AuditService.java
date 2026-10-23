@@ -16,13 +16,15 @@ public class AuditService {
         this.repo = repo;
     }
 
-    /** Appends one entry to the audit trail. Entries are never edited or deleted. */
+    /**
+     * Appends one entry to the audit trail. Entries are never edited or deleted.
+     */
     public void log(String actor, String actionType, String entityType, Object entityId, String details) {
         AuditLog entry = new AuditLog();
         entry.setActor(actor);
         entry.setActionType(actionType);
         entry.setEntityType(entityType);
-        entry.setEntityId(String.valueOf(entityId));
+        entry.setEntityId(entityId != null ? String.valueOf(entityId) : null);
         entry.setDetails(details);
         entry.setLoggedAt(LocalDateTime.now());
         repo.save(entry);

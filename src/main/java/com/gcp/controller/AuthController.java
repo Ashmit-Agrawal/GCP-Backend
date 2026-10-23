@@ -5,7 +5,7 @@ import com.gcp.dto.AuthResponse;
 import com.gcp.dto.AuthResponse.OfficerInfo;
 import com.gcp.exception.BadRequestException;
 import com.gcp.model.Company;
-import com.gcp.model.Role;
+import com.gcp.enums.Role;
 import com.gcp.model.User;
 import com.gcp.repository.CompanyRepository;
 import com.gcp.repository.UserRepository;
@@ -29,9 +29,9 @@ public class AuthController {
     private final CompanyRepository companyRepository;
 
     public AuthController(AuthenticationManager authenticationManager,
-                          JwtTokenProvider tokenProvider,
-                          UserRepository userRepository,
-                          CompanyRepository companyRepository) {
+            JwtTokenProvider tokenProvider,
+            UserRepository userRepository,
+            CompanyRepository companyRepository) {
         this.authenticationManager = authenticationManager;
         this.tokenProvider = tokenProvider;
         this.userRepository = userRepository;
@@ -42,8 +42,7 @@ public class AuthController {
     public AuthResponse login(@Valid @RequestBody AuthRequest req) {
         try {
             Authentication authentication = authenticationManager.authenticate(
-                    new UsernamePasswordAuthenticationToken(req.username().trim(), req.password())
-            );
+                    new UsernamePasswordAuthenticationToken(req.username().trim(), req.password()));
 
             SecurityContextHolder.getContext().setAuthentication(authentication);
 
@@ -51,8 +50,7 @@ public class AuthController {
                     .orElseThrow(() -> new BadRequestException("User not found"));
 
             String token = tokenProvider.generateToken(
-                    user.getUsername(), user.getRole(), user.getCompanyId(), user.getFullName()
-            );
+                    user.getUsername(), user.getRole(), user.getCompanyId(), user.getFullName());
 
             Company company = null;
             if (user.getCompanyId() != null) {
@@ -66,8 +64,7 @@ public class AuthController {
                         "Regional Environmental Officer",
                         "Central India Zone",
                         "IFS-2014-0473",
-                        "Ministry of Environment, Forest & Climate Change"
-                );
+                        "Ministry of Environment, Forest & Climate Change");
             }
 
             return new AuthResponse(
@@ -78,11 +75,11 @@ public class AuthController {
                     user.getFullName(),
                     user.getCompanyId(),
                     company,
-                    officer
-            );
+                    officer);
 
         } catch (DisabledException e) {
-            throw new BadRequestException("Your account is pending verification and approval by the administrative officer.");
+            throw new BadRequestException(
+                    "Your account is pending verification and approval by the administrative officer.");
         } catch (BadCredentialsException e) {
             throw new BadRequestException("Invalid username or password.");
         }
@@ -111,8 +108,7 @@ public class AuthController {
                     "Regional Environmental Officer",
                     "Central India Zone",
                     "IFS-2014-0473",
-                    "Ministry of Environment, Forest & Climate Change"
-            );
+                    "Ministry of Environment, Forest & Climate Change");
         }
 
         return new AuthResponse(
@@ -123,8 +119,6 @@ public class AuthController {
                 user.getFullName(),
                 user.getCompanyId(),
                 company,
-                officer
-        );
+                officer);
     }
 }
-

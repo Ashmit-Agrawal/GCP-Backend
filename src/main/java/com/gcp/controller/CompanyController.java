@@ -5,7 +5,7 @@ import com.gcp.dto.CompanyRequest;
 import com.gcp.dto.CompanyVerificationResult;
 import com.gcp.dto.CreditAccount;
 import com.gcp.model.Company;
-import com.gcp.model.CompanyStatus;
+import com.gcp.enums.CompanyStatus;
 import com.gcp.model.CreditEntry;
 import com.gcp.model.LandApplication;
 import com.gcp.model.LandParcel;
@@ -22,7 +22,9 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-/** Everything a company's dashboard needs, grouped under /api/companies/{id}/... */
+/**
+ * Everything a company's dashboard needs, grouped under /api/companies/{id}/...
+ */
 @RestController
 @RequestMapping("/api/companies")
 public class CompanyController {
@@ -35,11 +37,11 @@ public class CompanyController {
     private final RedemptionService redemptions;
 
     public CompanyController(CompanyService companies,
-                             CompanyVerificationService verificationService,
-                             ApplicationService applications,
-                             ParcelService parcels,
-                             CreditService credits,
-                             RedemptionService redemptions) {
+            CompanyVerificationService verificationService,
+            ApplicationService applications,
+            ParcelService parcels,
+            CreditService credits,
+            RedemptionService redemptions) {
         this.companies = companies;
         this.verificationService = verificationService;
         this.applications = applications;
@@ -48,7 +50,9 @@ public class CompanyController {
         this.redemptions = redemptions;
     }
 
-    /** Full company registration with GSTIN/PAN/CIN validation and rank calculation */
+    /**
+     * Full company registration with GSTIN/PAN/CIN validation and rank calculation
+     */
     @PostMapping("/register")
     @ResponseStatus(HttpStatus.CREATED)
     public Company registerFull(@Valid @RequestBody CompanyRegistrationRequest req) {
@@ -61,7 +65,8 @@ public class CompanyController {
         return verificationService.verify(req.cin(), req.gstin(), req.pan(), req.annualTurnoverCrores());
     }
 
-    public record VerifyCheckRequest(String cin, String gstin, String pan, Double annualTurnoverCrores) {}
+    public record VerifyCheckRequest(String cin, String gstin, String pan, Double annualTurnoverCrores) {
+    }
 
     /** Legacy register endpoint */
     @PostMapping

@@ -71,8 +71,7 @@ public class SecurityConfig {
                         // Public endpoints
                         .requestMatchers(HttpMethod.POST, "/api/auth/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/auth/**").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/api/companies/register").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/api/companies/verify-check").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/companies", "/api/companies/register", "/api/companies/verify-check").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/health").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/parcels/**").permitAll()
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()

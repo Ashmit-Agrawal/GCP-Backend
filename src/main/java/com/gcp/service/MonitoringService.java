@@ -2,7 +2,7 @@ package com.gcp.service;
 
 import com.gcp.dto.MonitoringRequest;
 import com.gcp.model.MonitoringRecord;
-import com.gcp.model.RiskLevel;
+import com.gcp.enums.RiskLevel;
 import com.gcp.repository.MonitoringRecordRepository;
 import org.springframework.stereotype.Service;
 

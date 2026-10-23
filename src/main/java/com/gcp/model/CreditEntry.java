@@ -1,5 +1,7 @@
 package com.gcp.model;
 
+import com.gcp.enums.CreditStatus;
+import com.gcp.enums.VerificationMethod;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -16,7 +18,8 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 public class CreditEntry {
 
-    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     private Long companyId;

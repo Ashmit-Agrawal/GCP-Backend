@@ -3,7 +3,7 @@ package com.gcp.controller;
 import com.gcp.dto.CreditCalculationRequest;
 import com.gcp.dto.CreditDecisionRequest;
 import com.gcp.model.CreditEntry;
-import com.gcp.model.CreditStatus;
+import com.gcp.enums.CreditStatus;
 import com.gcp.service.CreditService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;

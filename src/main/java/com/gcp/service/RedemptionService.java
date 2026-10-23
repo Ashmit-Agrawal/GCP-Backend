@@ -6,8 +6,8 @@ import com.gcp.dto.RedemptionRequest;
 import com.gcp.exception.BadRequestException;
 import com.gcp.exception.NotFoundException;
 import com.gcp.model.Redemption;
-import com.gcp.model.RedemptionOption;
-import com.gcp.model.RedemptionStatus;
+import com.gcp.enums.RedemptionOption;
+import com.gcp.enums.RedemptionStatus;
 import com.gcp.repository.RedemptionRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -25,7 +25,7 @@ public class RedemptionService {
     private final AuditService audit;
 
     public RedemptionService(RedemptionRepository repo, CreditService credits,
-                             CompanyService companies, AuditService audit) {
+            CompanyService companies, AuditService audit) {
         this.repo = repo;
         this.credits = credits;
         this.companies = companies;
@@ -38,7 +38,10 @@ public class RedemptionService {
                 .toList();
     }
 
-    /** The balance must cover this request on top of any requests that are still waiting for review. */
+    /**
+     * The balance must cover this request on top of any requests that are still
+     * waiting for review.
+     */
     @Transactional
     public Redemption request(RedemptionRequest req) {
         companies.get(req.companyId());

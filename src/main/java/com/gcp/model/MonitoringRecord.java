@@ -1,5 +1,6 @@
 package com.gcp.model;
 
+import com.gcp.enums.RiskLevel;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -16,7 +17,8 @@ import java.time.LocalDate;
 @AllArgsConstructor
 public class MonitoringRecord {
 
-    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     private String parcelId;

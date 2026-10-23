@@ -2,7 +2,7 @@ package com.gcp.controller;
 
 import com.gcp.dto.ApplicationRequest;
 import com.gcp.dto.DecisionRequest;
-import com.gcp.model.ApplicationStatus;
+import com.gcp.enums.ApplicationStatus;
 import com.gcp.model.LandApplication;
 import com.gcp.service.ApplicationService;
 import jakarta.validation.Valid;
