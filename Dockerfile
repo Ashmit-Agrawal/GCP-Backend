@@ -1,55 +1,66 @@
-# ====================================================================
-# Temporary Dockerfile for OCI (Oracle Cloud Infrastructure) Instance
-# Green Credit Programme (GCP) - Backend Service
-# ====================================================================
+# ==============================================================================
+# OCI & Rootless Podman Compliant Multi-Stage Dockerfile
+# Green Credit Programme (GCP) — Spring Boot 3.3.5 Backend Service
+# ==============================================================================
 
-# Stage 1: Build JAR using Maven with Temurin JDK 17
-FROM eclipse-temurin:17-jdk-jammy AS builder
+# ------------------------------------------------------------------------------
+# Stage 1: Build Stage (Explicit Fully-Qualified OCI Registry Name)
+# ------------------------------------------------------------------------------
+FROM docker.io/library/eclipse-temurin:17-jdk-jammy AS build
+
 WORKDIR /workspace
 
-# Copy Maven wrapper and POM first for better layer caching
-COPY mvnw ./
-COPY .mvn .mvn
-COPY pom.xml ./
+# Copy Maven wrapper and POM metadata first to maximize OCI layer caching
+COPY .mvn/ .mvn/
+COPY mvnw pom.xml ./
 
-# Make wrapper executable and resolve dependencies
-RUN chmod +x ./mvnw && ./mvnw dependency:go-offline -B
+# Ensure wrapper script has Unix LF line endings and executable bit, then pre-fetch dependencies
+RUN sed -i 's/\r$//' ./mvnw \
+    && chmod +x ./mvnw \
+    && ./mvnw dependency:go-offline -B
 
-# Copy application source code
-COPY src ./src
-
-# Build production jar
+# Copy application source tree and build fat JAR
+COPY src/ ./src/
 RUN ./mvnw clean package -DskipTests -B
 
-# Stage 2: Minimal, secure JRE runtime container
-FROM eclipse-temurin:17-jre-jammy AS runtime
+# ------------------------------------------------------------------------------
+# Stage 2: Minimal Unprivileged JRE Runtime Stage
+# ------------------------------------------------------------------------------
+FROM docker.io/library/eclipse-temurin:17-jre-jammy AS runtime
 
-# Install curl for container healthcheck
-RUN apt-get update && apt-get install -y --no-install-recommends curl \
-  && rm -rf /var/lib/apt/lists/*
+LABEL org.opencontainers.image.title="gcp-backend" \
+      org.opencontainers.image.description="Green Credit Programme (GCP) National Portal Backend API" \
+      org.opencontainers.image.vendor="MoEFCC GCP Pilot Engineering" \
+      org.opencontainers.image.version="1.0.0"
 
-# Run as non-root user for security best practices
-RUN groupadd -r gcp && useradd -r -g gcp -u 1001 -m gcp
+# Install curl for container HEALTHCHECK probes and clean apt cache
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends curl ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create unprivileged system group and user with explicit UID/GID 10001 for rootless Podman
+RUN groupadd -g 10001 -r gcp \
+    && useradd -u 10001 -g 10001 -r -s /sbin/nologin -d /app gcp \
+    && mkdir -p /app \
+    && chown -R 10001:10001 /app
+
 WORKDIR /app
 
-# Copy executable jar from builder stage
-COPY --from=builder --chown=gcp:gcp /workspace/target/*.jar /app/app.jar
+# Copy compiled Spring Boot artifact with non-root ownership
+COPY --from=build --chown=10001:10001 /workspace/target/*.jar /app/app.jar
 
-USER gcp:gcp
+# Drop root privileges permanently
+USER 10001:10001
 
-# Default service port
-EXPOSE 8080
+# Unprivileged application port (>1024 required for rootless Podman netns)
+ENV SERVER_PORT=8080 \
+    SPRING_PROFILES_ACTIVE=dev
 
-# Environment defaults (override via docker run -e or OCI container instance env vars)
-ENV SPRING_DATASOURCE_URL="jdbc:postgresql://localhost:5432/gcpdb" \
-  SPRING_DATASOURCE_USERNAME="postgres" \
-  SPRING_DATASOURCE_PASSWORD="postgres" \
-  SPRING_DATA_MONGODB_URI="mongodb://localhost:27017/gcpdb" \
-  CORS_ALLOWED_ORIGINS="http://localhost:5173,http://localhost:3000" \
-  JAVA_OPTS="-XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0 -XX:+ExitOnOutOfMemoryError"
+EXPOSE 8080 8081
 
-# Container healthcheck using backend's /api/health endpoint
+# OCI / Docker healthcheck probing the Spring Boot liveness endpoint
 HEALTHCHECK --interval=30s --timeout=5s --start-period=40s --retries=3 \
-  CMD curl -f http://localhost:8080/api/health || exit 1
+    CMD curl -fsS "http://localhost:${SERVER_PORT:-8080}/api/health" || exit 1
 
-ENTRYPOINT ["sh", "-c", "exec java $JAVA_OPTS -jar /app/app.jar"]
+# Container-aware JVM entrypoint
+ENTRYPOINT ["java", "-XX:MaxRAMPercentage=75.0", "-Djava.security.egd=file:/dev/./urandom", "-jar", "/app/app.jar"]

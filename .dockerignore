@@ -1,6 +1,23 @@
+# Build artifacts & logs
 target/
+*.log
+*.jar
+*.war
+
+# Version control & documentation
 .git/
 .gitignore
+*.md
+
+# Local environment secrets & Docker Compose files
+.env
+.env.*
+docker-compose*.yaml
+docker-compose*.yml
+
+# IDE & OS metadata
 .idea/
+.vscode/
 *.iml
-*.log
+.DS_Store
+Thumbs.db
