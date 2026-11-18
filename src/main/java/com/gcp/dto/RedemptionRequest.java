@@ -5,5 +5,10 @@ import jakarta.validation.constraints.NotNull;
 
 public record RedemptionRequest(
                 @NotNull Long companyId,
-                @NotNull RedemptionOption option) {
+                @NotNull RedemptionOption option,
+                String idempotencyKey) {
+
+        public RedemptionRequest(Long companyId, RedemptionOption option) {
+                this(companyId, option, null);
+        }
 }

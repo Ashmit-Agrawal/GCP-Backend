@@ -7,5 +7,15 @@ import jakarta.validation.constraints.NotNull;
 public record DecisionRequest(
         @NotNull Boolean approve,
         @NotBlank String officerName,
-        String reason) {
+        String reason,
+        String idempotencyKey,
+        Boolean requestChanges) {
+
+    public DecisionRequest(Boolean approve, String officerName, String reason) {
+        this(approve, officerName, reason, null, false);
+    }
+
+    public DecisionRequest(Boolean approve, String officerName, String reason, String idempotencyKey) {
+        this(approve, officerName, reason, idempotencyKey, false);
+    }
 }

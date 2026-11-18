@@ -18,6 +18,7 @@ import com.gcp.service.ParcelService;
 import com.gcp.service.RedemptionService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -68,31 +69,36 @@ public class CompanyController {
     public record VerifyCheckRequest(String cin, String gstin, String pan, Double annualTurnoverCrores) {
     }
 
-    /** Legacy register endpoint */
+    /** Legacy register endpoint (restricted to Admin) */
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     public Company register(@Valid @RequestBody CompanyRequest req) {
         return companies.register(req);
     }
 
     @GetMapping
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     public List<Company> all(@RequestParam(required = false) CompanyStatus status) {
         return companies.findByStatus(status);
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("hasAuthority('ROLE_ADMIN') or @tenantSecurity.isCompanyOwner(#id)")
     public Company one(@PathVariable Long id) {
         return companies.get(id);
     }
 
     /** "Applications Under Review" and decided applications. */
     @GetMapping("/{id}/applications")
+    @PreAuthorize("hasAuthority('ROLE_ADMIN') or @tenantSecurity.isCompanyOwner(#id)")
     public List<LandApplication> applications(@PathVariable Long id) {
         return applications.findForCompany(id);
     }
 
     /** "Allocated Land Parcels". */
     @GetMapping("/{id}/parcels")
+    @PreAuthorize("hasAuthority('ROLE_ADMIN') or @tenantSecurity.isCompanyOwner(#id)")
     public List<LandParcel> allottedParcels(@PathVariable Long id) {
         companies.get(id);
         return parcels.findAllottedTo(id);
@@ -100,17 +106,21 @@ public class CompanyController {
 
     /** Credits Dashboard: total earned, redeemed, available, in pipeline. */
     @GetMapping("/{id}/credits")
+    @PreAuthorize("hasAuthority('ROLE_ADMIN') or @tenantSecurity.isCompanyOwner(#id)")
     public CreditAccount account(@PathVariable Long id) {
         return credits.account(id);
     }
 
     @GetMapping("/{id}/credits/ledger")
+    @PreAuthorize("hasAuthority('ROLE_ADMIN') or @tenantSecurity.isCompanyOwner(#id)")
     public List<CreditEntry> ledger(@PathVariable Long id) {
         return credits.ledger(id);
     }
 
     @GetMapping("/{id}/redemptions")
+    @PreAuthorize("hasAuthority('ROLE_ADMIN') or @tenantSecurity.isCompanyOwner(#id)")
     public List<Redemption> redemptions(@PathVariable Long id) {
         return redemptions.findForCompany(id);
     }
 }
+

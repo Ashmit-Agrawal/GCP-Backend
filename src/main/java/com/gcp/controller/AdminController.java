@@ -8,8 +8,11 @@ import com.gcp.repository.CreditEntryRepository;
 import com.gcp.repository.LandApplicationRepository;
 import com.gcp.repository.LandParcelRepository;
 import com.gcp.repository.RedemptionRepository;
+import com.gcp.security.SecurityUtils;
+import com.gcp.security.UserPrincipal;
 import com.gcp.service.*;
 import jakarta.validation.Valid;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -32,6 +35,7 @@ public class AdminController {
     private final CreditService creditService;
     private final RedemptionService redemptionService;
     private final AuditService auditService;
+    private final MonitoringService monitoringService;
 
     private final CompanyRepository companyRepo;
     private final LandApplicationRepository applicationRepo;
@@ -39,6 +43,7 @@ public class AdminController {
     private final LandParcelRepository parcelRepo;
     private final RedemptionRepository redemptionRepo;
 
+    @Autowired
     public AdminController(CompanyService companyService,
             CompanyVerificationService verificationService,
             ApplicationService applicationService,
@@ -46,6 +51,7 @@ public class AdminController {
             CreditService creditService,
             RedemptionService redemptionService,
             AuditService auditService,
+            MonitoringService monitoringService,
             CompanyRepository companyRepo,
             LandApplicationRepository applicationRepo,
             CreditEntryRepository creditRepo,
@@ -58,6 +64,7 @@ public class AdminController {
         this.creditService = creditService;
         this.redemptionService = redemptionService;
         this.auditService = auditService;
+        this.monitoringService = monitoringService;
         this.companyRepo = companyRepo;
         this.applicationRepo = applicationRepo;
         this.creditRepo = creditRepo;
@@ -186,6 +193,34 @@ public class AdminController {
     @PutMapping("/redemptions/{id}/decision")
     public Redemption decideRedemption(@PathVariable Long id, @Valid @RequestBody DecisionRequest req) {
         return redemptionService.decide(id, req);
+    }
+
+    // ==================== MONITORING & FIELD INSPECTION ====================
+
+    /** Returns all monitoring records enriched with parcel and company metadata. */
+    @GetMapping("/monitoring")
+    public List<MonitoringRecord> listMonitoring() {
+        return monitoringService.findAllEnriched();
+    }
+
+    /** Triggers a simulated satellite & AI monitoring pass for an allotted parcel. */
+    @PostMapping("/monitoring/trigger/{parcelId}")
+    @ResponseStatus(HttpStatus.CREATED)
+    public MonitoringRecord triggerMockMonitoring(@PathVariable String parcelId) {
+        return monitoringService.triggerMockMonitoring(parcelId);
+    }
+
+    /** Officer records field inspection request, verification, or flag on a monitoring record. */
+    @PutMapping("/monitoring/{id}/inspection")
+    public MonitoringRecord decideMonitoringInspection(@PathVariable Long id,
+            @Valid @RequestBody InspectionDecisionRequest req) {
+        String officer = SecurityUtils.getCurrentUserPrincipal()
+                .map(UserPrincipal::getFullName)
+                .filter(name -> name != null && !name.isBlank())
+                .orElse(req.officerName() != null && !req.officerName().isBlank()
+                        ? req.officerName()
+                        : "Dr. Arvind Sharma");
+        return monitoringService.updateInspection(id, req, officer);
     }
 
     // ==================== AUDIT TRAIL ====================

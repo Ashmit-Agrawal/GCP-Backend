@@ -4,6 +4,8 @@ import com.gcp.dto.ParcelRequest;
 import com.gcp.enums.*;
 import com.gcp.model.*;
 import com.gcp.repository.*;
+import com.gcp.service.CreditService;
+import com.gcp.service.MockSatelliteMonitoringProvider;
 import com.gcp.service.ParcelService;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -11,8 +13,11 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 @Component
 @ConditionalOnProperty(name = "gcp.seed-demo-data", havingValue = "true")
@@ -22,7 +27,10 @@ public class DemoDataSeeder implements CommandLineRunner {
         private final CompanyRepository companyRepo;
         private final LandParcelRepository parcelRepo;
         private final LandApplicationRepository applicationRepo;
+        private final ParcelAllocationRepository allocationRepo;
+        private final MonitoringRecordRepository monitoringRepo;
         private final CreditEntryRepository creditRepo;
+        private final CreditLedgerMovementRepository ledgerRepo;
         private final RedemptionRepository redemptionRepo;
         private final AuditLogRepository auditRepo;
         private final ParcelService parcelService;
@@ -32,7 +40,10 @@ public class DemoDataSeeder implements CommandLineRunner {
                         CompanyRepository companyRepo,
                         LandParcelRepository parcelRepo,
                         LandApplicationRepository applicationRepo,
+                        ParcelAllocationRepository allocationRepo,
+                        MonitoringRecordRepository monitoringRepo,
                         CreditEntryRepository creditRepo,
+                        CreditLedgerMovementRepository ledgerRepo,
                         RedemptionRepository redemptionRepo,
                         AuditLogRepository auditRepo,
                         ParcelService parcelService,
@@ -41,7 +52,10 @@ public class DemoDataSeeder implements CommandLineRunner {
                 this.companyRepo = companyRepo;
                 this.parcelRepo = parcelRepo;
                 this.applicationRepo = applicationRepo;
+                this.allocationRepo = allocationRepo;
+                this.monitoringRepo = monitoringRepo;
                 this.creditRepo = creditRepo;
+                this.ledgerRepo = ledgerRepo;
                 this.redemptionRepo = redemptionRepo;
                 this.auditRepo = auditRepo;
                 this.parcelService = parcelService;
@@ -51,9 +65,25 @@ public class DemoDataSeeder implements CommandLineRunner {
         @Override
         @Transactional
         public void run(String... args) {
-                if (userRepo.count() > 0) {
+                if (userRepo.count() > 0 && monitoringRepo.count() > 0) {
                         return;
                 }
+
+                // Clear any legacy pre-Phase-1 demo rows so Phase 1 enriched demo dataset seeds cleanly
+                if (userRepo.count() > 0) {
+                        auditRepo.deleteAll();
+                        redemptionRepo.deleteAll();
+                        ledgerRepo.deleteAll();
+                        creditRepo.deleteAll();
+                        monitoringRepo.deleteAll();
+                        allocationRepo.deleteAll();
+                        applicationRepo.deleteAll();
+                        companyRepo.deleteAll();
+                        userRepo.deleteAll();
+                }
+
+                // Ensure MongoDB parcels are clean when seeding a fresh PostgreSQL database
+                parcelRepo.deleteAll();
 
                 // 1. Seed Admin User
                 User admin = new User(
@@ -138,9 +168,7 @@ public class DemoDataSeeder implements CommandLineRunner {
                                 Role.ROLE_COMPANY, mahindra.getId(), mahindra.getName(), mahindra.getEmail(), true);
                 userRepo.save(mahindraUser);
 
-                // 5. Seed Company 4: EcoGreen Ventures Pvt Ltd (PENDING VERIFICATION - SILVER -
-                // max 15 ha)
-                // Ready for admin manual verification test!
+                // 5. Seed Company 4: EcoGreen Ventures Pvt Ltd (PENDING VERIFICATION - SILVER - max 15 ha)
                 Company eco = new Company();
                 eco.setName("EcoGreen Ventures Pvt Ltd");
                 eco.setSector("Renewable Energy");
@@ -159,12 +187,10 @@ public class DemoDataSeeder implements CommandLineRunner {
                 eco = companyRepo.save(eco);
 
                 User ecoUser = new User("ecogreen", passwordEncoder.encode("eco@123"),
-                                Role.ROLE_COMPANY, eco.getId(), eco.getName(), eco.getEmail(), false); // disabled until
-                                                                                                       // verified
+                                Role.ROLE_COMPANY, eco.getId(), eco.getName(), eco.getEmail(), false);
                 userRepo.save(ecoUser);
 
                 // 6. Seed Land Parcels
-                // Allotted parcels
                 LandParcel p1 = new LandParcel();
                 p1.setId("GCP-MH-2024-001");
                 p1.setLocation("Palghar Forest Belt, Maharashtra");
@@ -204,7 +230,7 @@ public class DemoDataSeeder implements CommandLineRunner {
                 parcelService.create(new ParcelRequest("Rajasthan", "RJ", "Aravalli Scrubland Zone",
                                 25.1462, 73.7124, 15.8, "Subtropical Thorn", DegradationLevel.HIGH));
 
-                parcelService.create(new ParcelRequest("Madhya Pradesh", "MP", "Satpura Buffer Zone",
+                LandParcel availMp = parcelService.create(new ParcelRequest("Madhya Pradesh", "MP", "Satpura Buffer Zone",
                                 22.3372, 78.2115, 13.0, "Deciduous", DegradationLevel.LOW));
 
                 parcelService.create(new ParcelRequest("West Bengal", "WB", "Sundarbans Fringe Sector 9",
@@ -216,7 +242,7 @@ public class DemoDataSeeder implements CommandLineRunner {
                 parcelService.create(new ParcelRequest("Odisha", "OD", "Similipal Peripheral Corridor",
                                 21.9333, 86.3333, 35.0, "Semi-Evergreen", DegradationLevel.HIGH));
 
-                // 7. Seed Applications
+                // 7. Seed Applications & Authoritative ParcelAllocations
                 LandApplication a1 = new LandApplication();
                 a1.setCompanyId(tata.getId());
                 a1.setParcelId(p1.getId());
@@ -224,7 +250,23 @@ public class DemoDataSeeder implements CommandLineRunner {
                 a1.setSubmittedAt(LocalDateTime.now().minusMonths(5).minusDays(10));
                 a1.setDecidedAt(LocalDateTime.now().minusMonths(5));
                 a1.setDecidedBy("Dr. Arvind Sharma");
-                applicationRepo.save(a1);
+                a1.setDecisionReason("Approved under MoEFCC Western Ghats Restoration Scheme");
+                a1.setProposedSpecies("Native Teak, Bamboo, Indian Rosewood");
+                a1.setSaplingCount(7400);
+                a1.setPlantingPlanSummary("Monsoon staggered pit-planting across 18.5 ha with drip-mulch retention and fire-line trenching.");
+                a1.setSupportingDocRef("GCP-AFF-PLAN-MH-001.pdf");
+                a1.setPlantationStatus("UNDER_MONITORING");
+                a1.setLastActivityNote("7,400 native saplings planted; 92% survival verified at 6-month milestone.");
+                a1 = applicationRepo.save(a1);
+
+                allocationRepo.save(ParcelAllocation.builder()
+                                .parcelId(p1.getId())
+                                .companyId(tata.getId())
+                                .applicationId(a1.getId())
+                                .status(AllocationStatus.ALLOCATED)
+                                .allotmentDate(p1.getAllotmentDate())
+                                .createdAt(LocalDateTime.now().minusMonths(5))
+                                .build());
 
                 LandApplication a2 = new LandApplication();
                 a2.setCompanyId(infy.getId());
@@ -233,16 +275,121 @@ public class DemoDataSeeder implements CommandLineRunner {
                 a2.setSubmittedAt(LocalDateTime.now().minusMonths(4).minusDays(8));
                 a2.setDecidedAt(LocalDateTime.now().minusMonths(4));
                 a2.setDecidedBy("Dr. Arvind Sharma");
-                applicationRepo.save(a2);
+                a2.setDecisionReason("Approved for Nilgiri Biosphere buffer afforestation");
+                a2.setProposedSpecies("Sandalwood, Malabar Neem, Pongamia");
+                a2.setSaplingCount(4800);
+                a2.setPlantingPlanSummary("Buffer zone native species restoration across 12.0 ha with rainwater harvesting trenches.");
+                a2.setSupportingDocRef("GCP-AFF-PLAN-KA-022.pdf");
+                a2.setPlantationStatus("PLANTED");
+                a2.setLastActivityNote("4,800 saplings planted across Bandipur Buffer sectors A-C; mulching completed.");
+                a2 = applicationRepo.save(a2);
 
+                allocationRepo.save(ParcelAllocation.builder()
+                                .parcelId(p2.getId())
+                                .companyId(infy.getId())
+                                .applicationId(a2.getId())
+                                .status(AllocationStatus.ALLOCATED)
+                                .allotmentDate(p2.getAllotmentDate())
+                                .createdAt(LocalDateTime.now().minusMonths(4))
+                                .build());
+
+                // Pending application pointing to an actually AVAILABLE parcel (Satpura Buffer Zone, 13.0 ha <= 25 ha GOLD limit)
                 LandApplication pendingApp = new LandApplication();
                 pendingApp.setCompanyId(mahindra.getId());
-                pendingApp.setParcelId("GCP-KA-2024-022"); // or available parcel
+                pendingApp.setParcelId(availMp.getId());
                 pendingApp.setStatus(ApplicationStatus.PENDING_REVIEW);
                 pendingApp.setSubmittedAt(LocalDateTime.now().minusDays(5));
+                pendingApp.setProposedSpecies("Sal, Mahua, Arjun, Bamboo");
+                pendingApp.setSaplingCount(5200);
+                pendingApp.setPlantingPlanSummary("Watershed-aligned native deciduous afforestation (400 saplings/ha) with community forest guards.");
+                pendingApp.setSupportingDocRef("GCP-AFF-PLAN-MP-SATPURA.pdf");
+                pendingApp.setPlantationStatus("NOT_STARTED");
+                pendingApp.setLastActivityNote("Awaiting Nodal Officer review and parcel allocation.");
                 applicationRepo.save(pendingApp);
 
-                // 8. Seed Credits
+                // 8. Seed Simulated Satellite & AI Monitoring Records
+                monitoringRepo.save(MonitoringRecord.builder()
+                                .parcelId(p1.getId())
+                                .recordedOn(LocalDate.now().minusMonths(4))
+                                .canopyPercent(22.0)
+                                .biomassIndex(1.05)
+                                .moistureStability(68.0)
+                                .riskLevel(RiskLevel.MEDIUM)
+                                .providerName(MockSatelliteMonitoringProvider.PROVIDER_NAME)
+                                .modelVersion(MockSatelliteMonitoringProvider.MODEL_VERSION)
+                                .confidenceScore(0.86)
+                                .isSimulated(true)
+                                .inspectionStatus("AI_ADVISORY_ONLY")
+                                .note("[SIMULATED SATELLITE & AI PASS — MOCK_SENTINEL2_AI] Baseline post-plantation multi-spectral pass: 22.0% initial canopy cover.")
+                                .build());
+
+                monitoringRepo.save(MonitoringRecord.builder()
+                                .parcelId(p1.getId())
+                                .recordedOn(LocalDate.now().minusMonths(2))
+                                .canopyPercent(33.5)
+                                .biomassIndex(1.28)
+                                .moistureStability(71.5)
+                                .riskLevel(RiskLevel.LOW)
+                                .providerName(MockSatelliteMonitoringProvider.PROVIDER_NAME)
+                                .modelVersion(MockSatelliteMonitoringProvider.MODEL_VERSION)
+                                .confidenceScore(0.89)
+                                .isSimulated(true)
+                                .inspectionStatus("AI_ADVISORY_ONLY")
+                                .note("[SIMULATED SATELLITE & AI PASS — MOCK_SENTINEL2_AI] Mid-cycle pass shows +11.5% canopy expansion across northern ridge.")
+                                .build());
+
+                monitoringRepo.save(MonitoringRecord.builder()
+                                .parcelId(p1.getId())
+                                .recordedOn(LocalDate.now().minusDays(7))
+                                .canopyPercent(42.0)
+                                .biomassIndex(1.49)
+                                .moistureStability(75.4)
+                                .riskLevel(RiskLevel.LOW)
+                                .providerName(MockSatelliteMonitoringProvider.PROVIDER_NAME)
+                                .modelVersion(MockSatelliteMonitoringProvider.MODEL_VERSION)
+                                .confidenceScore(0.92)
+                                .isSimulated(true)
+                                .inspectionStatus("FIELD_VERIFIED")
+                                .inspectedBy("Dr. Arvind Sharma")
+                                .inspectedAt(LocalDateTime.now().minusDays(5))
+                                .inspectorNotes("Ground-truthing inspection confirmed >90% sapling survival and healthy canopy closure.")
+                                .note("[SIMULATED SATELLITE & AI PASS — MOCK_SENTINEL2_AI] Current pass: 42.0% canopy density (+20.0% net growth over baseline).")
+                                .build());
+
+                monitoringRepo.save(MonitoringRecord.builder()
+                                .parcelId(p2.getId())
+                                .recordedOn(LocalDate.now().minusMonths(3))
+                                .canopyPercent(19.5)
+                                .biomassIndex(0.98)
+                                .moistureStability(64.0)
+                                .riskLevel(RiskLevel.MEDIUM)
+                                .providerName(MockSatelliteMonitoringProvider.PROVIDER_NAME)
+                                .modelVersion(MockSatelliteMonitoringProvider.MODEL_VERSION)
+                                .confidenceScore(0.85)
+                                .isSimulated(true)
+                                .inspectionStatus("AI_ADVISORY_ONLY")
+                                .note("[SIMULATED SATELLITE & AI PASS — MOCK_SENTINEL2_AI] Baseline pass for Bandipur Buffer Zone: 19.5% canopy density.")
+                                .build());
+
+                monitoringRepo.save(MonitoringRecord.builder()
+                                .parcelId(p2.getId())
+                                .recordedOn(LocalDate.now().minusDays(4))
+                                .canopyPercent(34.0)
+                                .biomassIndex(1.32)
+                                .moistureStability(70.8)
+                                .riskLevel(RiskLevel.LOW)
+                                .providerName(MockSatelliteMonitoringProvider.PROVIDER_NAME)
+                                .modelVersion(MockSatelliteMonitoringProvider.MODEL_VERSION)
+                                .confidenceScore(0.90)
+                                .isSimulated(true)
+                                .inspectionStatus("INSPECTION_REQUESTED")
+                                .inspectedBy("Dr. Arvind Sharma")
+                                .inspectedAt(LocalDateTime.now().minusDays(2))
+                                .inspectorNotes("Scheduled field verification team for Bandipur Sector B.")
+                                .note("[SIMULATED SATELLITE & AI PASS — MOCK_SENTINEL2_AI] Latest pass: 34.0% canopy density (+14.5% growth). Ready for field inspection.")
+                                .build());
+
+                // 9. Seed Credits & Matching Immutable Ledger Movements
                 CreditEntry c1 = new CreditEntry();
                 c1.setCompanyId(tata.getId());
                 c1.setParcelId(p1.getId());
@@ -251,23 +398,39 @@ public class DemoDataSeeder implements CommandLineRunner {
                 c1.setCredits(370.0);
                 c1.setVerificationMethod(VerificationMethod.AI_OFFICER_VERIFIED);
                 c1.setStatus(CreditStatus.APPROVED);
+                c1.setPolicyVersion(CreditService.POLICY_VERSION);
                 c1.setCreatedAt(LocalDateTime.now().minusMonths(2));
                 c1.setDecidedAt(LocalDateTime.now().minusMonths(2));
                 c1.setDecidedBy("Dr. Arvind Sharma");
-                creditRepo.save(c1);
+                c1.setRemarks("Verified via Sentinel-2 NDVI pass and field officer inspection.");
+                c1 = creditRepo.save(c1);
+
+                ledgerRepo.save(CreditLedgerMovement.builder()
+                                .transactionId(UUID.randomUUID().toString())
+                                .companyId(tata.getId())
+                                .amount(BigDecimal.valueOf(370.0).setScale(4, RoundingMode.HALF_UP))
+                                .type(CreditMovementType.CREDIT_ISSUANCE)
+                                .referenceType("CREDIT_ENTRY")
+                                .referenceId(c1.getId())
+                                .balanceAfter(BigDecimal.valueOf(370.0).setScale(4, RoundingMode.HALF_UP))
+                                .note("Credit approved and issued by Dr. Arvind Sharma [" + CreditService.POLICY_VERSION + "]")
+                                .timestamp(LocalDateTime.now().minusMonths(2))
+                                .build());
 
                 CreditEntry cDraft = new CreditEntry();
-                cDraft.setCompanyId(tata.getId());
-                cDraft.setParcelId(p1.getId());
-                cDraft.setAreaHectares(18.5);
-                cDraft.setCanopyGrowthPercent(15.5);
-                cDraft.setCredits(286.75);
+                cDraft.setCompanyId(infy.getId());
+                cDraft.setParcelId(p2.getId());
+                cDraft.setAreaHectares(12.0);
+                cDraft.setCanopyGrowthPercent(14.5);
+                cDraft.setCredits(174.0);
                 cDraft.setVerificationMethod(VerificationMethod.AI_VERIFIED);
                 cDraft.setStatus(CreditStatus.DRAFT);
+                cDraft.setPolicyVersion(CreditService.POLICY_VERSION);
                 cDraft.setCreatedAt(LocalDateTime.now().minusDays(3));
+                cDraft.setRemarks("Auto-calculated from simulated satellite pass; awaiting field inspection confirmation.");
                 creditRepo.save(cDraft);
 
-                // 9. Seed Redemptions
+                // 10. Seed Redemptions & Matching Ledger Movements
                 Redemption r1 = new Redemption();
                 r1.setCompanyId(tata.getId());
                 r1.setRedemptionOption(RedemptionOption.CARBON_OFFSET_CERTIFICATE);
@@ -276,16 +439,42 @@ public class DemoDataSeeder implements CommandLineRunner {
                 r1.setRequestedAt(LocalDateTime.now().minusMonths(1));
                 r1.setDecidedAt(LocalDateTime.now().minusMonths(1));
                 r1.setDecidedBy("Dr. Arvind Sharma");
-                redemptionRepo.save(r1);
+                r1.setRemarks("Issued Carbon Offset Certificate #MoEFCC-COC-2026-001");
+                r1 = redemptionRepo.save(r1);
 
-                // 10. Seed Audits
+                ledgerRepo.save(CreditLedgerMovement.builder()
+                                .transactionId(UUID.randomUUID().toString())
+                                .companyId(tata.getId())
+                                .amount(BigDecimal.valueOf(r1.getCredits()).setScale(4, RoundingMode.HALF_UP))
+                                .type(CreditMovementType.REDEMPTION_HOLD)
+                                .referenceType("REDEMPTION")
+                                .referenceId(r1.getId())
+                                .balanceAfter(BigDecimal.valueOf(270.0).setScale(4, RoundingMode.HALF_UP))
+                                .note("Credit hold for redemption request: CARBON_OFFSET_CERTIFICATE")
+                                .timestamp(LocalDateTime.now().minusMonths(1).minusHours(2))
+                                .build());
+
+                ledgerRepo.save(CreditLedgerMovement.builder()
+                                .transactionId(UUID.randomUUID().toString())
+                                .companyId(tata.getId())
+                                .amount(BigDecimal.valueOf(r1.getCredits()).setScale(4, RoundingMode.HALF_UP))
+                                .type(CreditMovementType.REDEMPTION_SETTLED)
+                                .referenceType("REDEMPTION")
+                                .referenceId(r1.getId())
+                                .balanceAfter(BigDecimal.valueOf(270.0).setScale(4, RoundingMode.HALF_UP))
+                                .note("Redemption approved and settled by Dr. Arvind Sharma")
+                                .timestamp(LocalDateTime.now().minusMonths(1))
+                                .build());
+
+                // 11. Seed Audits
                 auditRepo.save(
                                 AuditLog.builder()
                                                 .actor("System")
                                                 .actionType("SEED_INIT")
                                                 .entityType("Database")
                                                 .entityId("1")
-                                                .details("PostgreSQL schema and demo seed initialized")
+                                                .details("PostgreSQL schema, MongoDB parcels, and demo seed initialized")
+                                                .loggedAt(LocalDateTime.now().minusMonths(6))
                                                 .build());
 
                 auditRepo.save(
@@ -295,6 +484,7 @@ public class DemoDataSeeder implements CommandLineRunner {
                                                 .entityType("Company")
                                                 .entityId(String.valueOf(tata.getId()))
                                                 .details("Approved Tata Power Ltd (PLATINUM rank, max 50 ha)")
+                                                .loggedAt(LocalDateTime.now().minusMonths(6))
                                                 .build());
 
                 auditRepo.save(
@@ -304,6 +494,7 @@ public class DemoDataSeeder implements CommandLineRunner {
                                                 .entityType("Company")
                                                 .entityId(String.valueOf(infy.getId()))
                                                 .details("Approved Infosys Ltd (PLATINUM rank, max 50 ha)")
+                                                .loggedAt(LocalDateTime.now().minusMonths(5))
                                                 .build());
 
                 auditRepo.save(
@@ -313,6 +504,7 @@ public class DemoDataSeeder implements CommandLineRunner {
                                                 .entityType("Company")
                                                 .entityId(String.valueOf(mahindra.getId()))
                                                 .details("Approved Mahindra & Mahindra Ltd (GOLD rank, max 25 ha)")
+                                                .loggedAt(LocalDateTime.now().minusMonths(4))
                                                 .build());
         }
 }

@@ -45,4 +45,7 @@ public class LandParcel {
     private LocalDate allotmentDate;
 
     private LocalDateTime createdAt;
+
+    @org.springframework.data.annotation.Version
+    private Long version;
 }

@@ -11,4 +11,10 @@ public interface RedemptionRepository extends JpaRepository<Redemption, Long> {
     List<Redemption> findByCompanyId(Long companyId);
 
     List<Redemption> findByStatus(RedemptionStatus status);
+
+    Optional<Redemption> findByIdempotencyKey(String idempotencyKey);
+
+    @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    @org.springframework.data.jpa.repository.Query("SELECT r FROM Redemption r WHERE r.id = :id")
+    Optional<Redemption> findByIdForUpdate(@org.springframework.data.repository.query.Param("id") Long id);
 }

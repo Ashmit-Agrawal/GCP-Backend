@@ -11,7 +11,10 @@ import lombok.NoArgsConstructor;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "redemptions")
+@Table(name = "redemptions", indexes = {
+        @Index(name = "idx_redemption_company_status", columnList = "companyId, status"),
+        @Index(name = "idx_redemption_idemp", columnList = "idempotencyKey", unique = true)
+})
 @Data
 @Builder
 @NoArgsConstructor
@@ -22,16 +25,21 @@ public class Redemption {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(nullable = false)
     private Long companyId;
 
     @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 64)
     private RedemptionOption redemptionOption;
 
+    @Column(nullable = false)
     private double credits;
 
     @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 32)
     private RedemptionStatus status;
 
+    @Column(nullable = false)
     private LocalDateTime requestedAt;
 
     private LocalDateTime decidedAt;
@@ -39,4 +47,16 @@ public class Redemption {
     private String decidedBy;
 
     private String remarks;
+
+    @Column(length = 64)
+    private String idempotencyKey;
+
+    @Transient
+    private String companyName;
+
+    @Transient
+    private String purpose;
+
+    @Version
+    private Long version;
 }

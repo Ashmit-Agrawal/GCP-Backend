@@ -3,21 +3,15 @@ package com.gcp.controller;
 import com.gcp.dto.MonitoringRequest;
 import com.gcp.dto.ParcelRequest;
 import com.gcp.enums.DegradationLevel;
+import com.gcp.enums.ParcelStatus;
 import com.gcp.model.LandParcel;
 import com.gcp.model.MonitoringRecord;
-import com.gcp.enums.ParcelStatus;
 import com.gcp.service.MonitoringService;
 import com.gcp.service.ParcelService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.ResponseStatus;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
@@ -53,9 +47,10 @@ public class ParcelController {
         return parcels.get(id);
     }
 
-    /** Government uploads a degraded parcel. The parcel ID is generated. */
+    /** Government uploads a degraded parcel. Admin only. */
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     public LandParcel create(@Valid @RequestBody ParcelRequest req) {
         return parcels.create(req);
     }
@@ -66,9 +61,19 @@ public class ParcelController {
         return monitoring.history(id);
     }
 
+    /** Record monitoring measurement. Admin / authorized service only. */
     @PostMapping("/{id}/monitoring")
     @ResponseStatus(HttpStatus.CREATED)
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     public MonitoringRecord addReading(@PathVariable String id, @Valid @RequestBody MonitoringRequest req) {
         return monitoring.add(id, req);
+    }
+
+    /** Trigger a simulated satellite & AI monitoring pass for the parcel. */
+    @PostMapping({"/{id}/monitoring/trigger-mock", "/{id}/monitoring/Trigger-mock"})
+    @ResponseStatus(HttpStatus.CREATED)
+    @PreAuthorize("isAuthenticated()")
+    public MonitoringRecord triggerMockReading(@PathVariable String id) {
+        return monitoring.triggerMockMonitoring(id);
     }
 }

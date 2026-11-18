@@ -17,5 +17,21 @@ public record MonitoringRequest(
                 Double biomassIndex,
                 Double moistureStability,
                 RiskLevel riskLevel,
-                String note) {
+                String note,
+                String providerName,
+                String modelVersion,
+                Double confidenceScore,
+                Boolean isSimulated,
+                String inspectionStatus) {
+
+        public MonitoringRequest(
+                        LocalDate recordedOn,
+                        Double canopyPercent,
+                        Double biomassIndex,
+                        Double moistureStability,
+                        RiskLevel riskLevel,
+                        String note) {
+                this(recordedOn, canopyPercent, biomassIndex, moistureStability, riskLevel, note,
+                                "MOCK_ISRO_SENTINEL_V1", "canopy-ai-sim-1.0", 0.88, true, "AI_ADVISORY_ONLY");
+        }
 }

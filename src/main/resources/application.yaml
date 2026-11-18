@@ -1,6 +1,8 @@
 spring:
   application:
     name: gcp-backend
+  profiles:
+    default: dev
 
   datasource:
     url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:${POSTGRES_PORT:5432}/${POSTGRES_DB:gcpdb}}
@@ -20,16 +22,16 @@ spring:
         dialect: org.hibernate.dialect.PostgreSQLDialect
 
 server:
-  port: 8080
+  port: ${SERVER_PORT:8081}
 
 # Frontend (Vite dev server). Comma-separate to allow more origins.
 gcp:
   cors:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173,http://localhost:3000}
-  # Loads demo parcels and seed users on startup
-  seed-demo-data: true
+  # Loads demo parcels and seed users on startup (disabled in base config; enabled in dev profile)
+  seed-demo-data: ${GCP_SEED_DEMO_DATA:false}
 
-# JWT Configuration
+# JWT Configuration (Secret must be provided via environment variable or dev profile)
 jwt:
-  secret: ${JWT_SECRET:9a3f2c4e6b8a1d0f5e7c3b2a1f4e6d8c0b2a4e6f8a1c3e5d7b9a0c2e4f6a8b1d}
-  expiration-ms: 86400000
+  secret: ${JWT_SECRET:}
+  expiration-ms: ${JWT_EXPIRATION_MS:86400000}

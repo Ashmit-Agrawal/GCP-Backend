@@ -1,0 +1,12 @@
+# ==============================================================================
+# Development Profile Configuration (Strictly for local offline developer testing)
+# Activate with: --spring.profiles.active=dev or export SPRING_PROFILES_ACTIVE=dev
+# ==============================================================================
+gcp:
+  # Enable demo seed data in dev profile only
+  seed-demo-data: true
+
+jwt:
+  # Explicit development-only signing secret (satisfies >= 256 bits constraint)
+  secret: "gcp-dev-environment-signing-key-not-for-production-use-2024-secure-key"
+  expiration-ms: 86400000

@@ -17,4 +17,8 @@ public interface CompanyRepository extends JpaRepository<Company, Long> {
     List<Company> findByStatus(CompanyStatus status);
 
     long countByStatus(CompanyStatus status);
+
+    @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    @org.springframework.data.jpa.repository.Query("SELECT c FROM Company c WHERE c.id = :id")
+    Optional<Company> findByIdForUpdate(@org.springframework.data.repository.query.Param("id") Long id);
 }

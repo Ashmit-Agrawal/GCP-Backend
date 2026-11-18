@@ -64,24 +64,31 @@ public class SecurityConfig {
                         .accessDeniedHandler((request, response, accessDeniedException) -> {
                             response.setStatus(HttpStatus.FORBIDDEN.value());
                             response.setContentType("application/json");
-                            response.getWriter().write("{\"error\":\"Forbidden\",\"message\":\"Access denied. Requires elevated permissions.\"}");
-                        })
-                )
+                            response.getWriter().write(
+                                    "{\"error\":\"Forbidden\",\"message\":\"Access denied. Requires elevated permissions.\"}");
+                        }))
                 .authorizeHttpRequests(auth -> auth
                         // Public endpoints
                         .requestMatchers(HttpMethod.POST, "/api/auth/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/auth/**").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/api/companies", "/api/companies/register", "/api/companies/verify-check").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/companies/register",
+                                "/api/companies/verify-check")
+                        .permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/health").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/parcels/**").permitAll()
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
-                        // Dedicated Admin endpoints
+                        // Dedicated Admin endpoints and privileged operations
                         .requestMatchers("/api/admin/**").hasAuthority("ROLE_ADMIN")
+                        .requestMatchers(HttpMethod.POST, "/api/companies").hasAuthority("ROLE_ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/api/companies").hasAuthority("ROLE_ADMIN")
+                        .requestMatchers(HttpMethod.POST, "/api/parcels", "/api/parcels/*/monitoring").hasAuthority("ROLE_ADMIN")
+                        .requestMatchers(HttpMethod.PUT, "/api/applications/*/decision", "/api/credits/*/decision", "/api/redemptions/*/decision").hasAuthority("ROLE_ADMIN")
+                        .requestMatchers(HttpMethod.POST, "/api/credits/calculate").hasAuthority("ROLE_ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/api/audit/**").hasAuthority("ROLE_ADMIN")
 
                         // Authenticated company and general endpoints
-                        .anyRequest().authenticated()
-                );
+                        .anyRequest().authenticated());
 
         http.addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
@@ -106,4 +113,3 @@ public class SecurityConfig {
         return source;
     }
 }
-
