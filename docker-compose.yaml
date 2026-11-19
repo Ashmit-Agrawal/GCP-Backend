@@ -21,6 +21,7 @@ services:
     image: mongo:7.0
     container_name: gcp-mongodb
     restart: unless-stopped
+    command: ["--wiredTigerCacheSizeGB", "0.5"]
     environment:
       MONGO_INITDB_DATABASE: ${MONGO_DB:-gcpdb}
     ports:
@@ -47,6 +48,7 @@ services:
     env_file:
       - .env
     environment:
+      JAVA_TOOL_OPTIONS: "-Xmx768m -Xms256m"
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-gcpdb}
       SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-gcp_admin}
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-gcp_password}
