@@ -53,7 +53,7 @@ COPY --from=build --chown=10001:10001 /workspace/target/*.jar /app/app.jar
 USER 10001:10001
 
 # Unprivileged application port (>1024 required for rootless Podman netns)
-ENV SERVER_PORT=8080 \
+ENV SERVER_PORT=8081 \
     SPRING_PROFILES_ACTIVE=dev
 
 EXPOSE 8080 8081
